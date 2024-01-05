@@ -64,7 +64,6 @@ function Ensure-Files {
         [string[]]$Urls,
         [Parameter(Mandatory=$true)]
         [string]$DownloadDir
-        # [string]$SevenZipInstallerName
     )
 
     # Skipped ensuring directory as it will always exist
