@@ -1,5 +1,6 @@
 param(
     [switch]$InitialSetup,
+    [switch]$Backup,
     [switch]$HDR,
     [Switch]$Ult
 )
@@ -9,6 +10,8 @@ param(
 $yuzuPath = "$env:USERPROFILE\AppData\Roaming\yuzu"
 $yuzuArchivePath = "$yuzuPath\archives"
 $dependenciesPath = "$yuzuArchivePath\dependencies"
+$ymPath = "$env:USERPROFILE\AppData\Roaming\Yuzu_Manager"
+$ymBackupPath = "$ymPath\backup"
 $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
 $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
@@ -107,11 +110,30 @@ function Ensure-7zip {
     }
 }
 
+# ---- Backup-YuzuFolder ----
+function Backup-YuzuFolder {
+    # Get filename, remove file.
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    Remove-Item $tempFile -Force
+
+    # Get current date and time for backup filename
+    $backupName = (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + "_yuzu.tar"
+
+    Write-Host "Starting backup..."
+    Start-Process -FilePath $sevenZipPath -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
+    Write-Host "Done."
+
+    Write-Host "Moving to backup location: $ymBackupPath"
+    Move-Item -Path "$tempFile" -Destination "$ymBackupPath\$backupName"
+}
+
 # --- Initial Setup ---
 # Create directories as necessary.
 New-Item -ItemType Directory -Path "$yuzuArchivePath" -Force | Out-Null
 New-Item -ItemType Directory -Path "$dependenciesPath" -Force | Out-Null
 New-Item -ItemType Directory -Path "$yuzuArchivePath\created" -Force | Out-Null
+New-Item -ItemType Directory -Path "$ymPath" -Force | Out-Null
+New-Item -ItemType Directory -Path "$ymBackupPath" -Force | Out-Null
 
 # --- Run ---
 # ---- Always ----
@@ -126,3 +148,10 @@ Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
 
 # ---- Switches ----
+# if ($InitialSetup) {
+
+# }
+
+if ($Backup) {
+    Backup-YuzuFolder
+}
