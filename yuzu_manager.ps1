@@ -5,13 +5,15 @@ param(
     [Switch]$Ult
 )
 
+
 # --- Variables ---
 # ---- Paths & Filesnames ----
 $yuzuPath = "$env:USERPROFILE\AppData\Roaming\yuzu"
-$yuzuArchivePath = "$yuzuPath\archives"
-$dependenciesPath = "$yuzuArchivePath\dependencies"
 $ymPath = "$env:USERPROFILE\AppData\Roaming\Yuzu_Manager"
+$archivePath = "$ymPath\archives"
+$dependenciesPath = "$archivePath\dependencies"
 $ymBackupPath = "$ymPath\backup"
+$ymLogPath = "$ymPath\Yuzu_Manager_log.txt"
 $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
 $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
@@ -34,7 +36,41 @@ $fileUrls = @(
     $wifiFixUrl
 )
 
+
 # --- Functions ---
+# ---- Handle-Error ----
+function Handle-Error {
+    param(
+        [System.Management.Automation.ErrorRecord]$ErrorRecord,
+        [string]$LogPath
+    )
+
+    # Basic logging.
+    # $errorMessage = "Error: " + "$ErrorRecord.Exception.Message"
+    # $errorMessage | Out-File -FilePath "$LogPath" -Append
+
+    # Advanced logging.
+    $errorMessage = "ERROR: $($ErrorRecord.Exception.GetType().FullName)"
+    $timeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "$timeStamp - $($ErrorRecord.Exception.Message) - $errorMessage - $($ErrorRecord.ScriptStackTrace) - $ErrorRecord."
+    $logMessage | Out-File -FilePath $LogPath -Append
+
+    # Handle error.
+    switch ($ErrorRecord.Exception.GetType().FullName) {
+        "System.Net.WebException" {
+            Write-Host "ERROR: Network error occurred. Double check your connection and try again.`n  NOTE: If connection is fine, the file probably no longer exists; ask Null for a copy."
+
+            # Investigation code here.
+
+            exit 1
+        }
+        default {
+            Write-Host "ERROR: Unknown error occured.`n  Check the log at $LogPath"
+            exit 1
+        }
+    }
+}
+
 # ---- Get-LatestHdrReleaseUrl ----
 function Get-LatestHdrReleaseUrl {
     param(
@@ -47,19 +83,19 @@ function Get-LatestHdrReleaseUrl {
 
     try {
         $latestRelease = Invoke-WebRequest -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" } -UseBasicParsing | ConvertFrom-Json
-
-        # Find asset.
-        foreach ($asset in $latestRelease.assets) {
-            if ($asset.name -eq $AssetName) {
-                return $asset.browser_download_url
-            }
-        }
-        Write-Host "Asset $AssetName not found in latest release."
-        return $null
     } catch {
-        Write-Host "Error retrieving latest release: $_"
-        return $null
+        Write-Host "Error accessing HDR GitHub API."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
     }
+
+    # Find asset.
+    foreach ($asset in $latestRelease.assets) {
+        if ($asset.name -eq $AssetName) {
+            return $asset.browser_download_url
+        }
+    }
+    Write-Host "Asset $AssetName not found in latest release."
+    return $null
 }
 
 # ---- Ensure-Files ----
@@ -84,8 +120,13 @@ function Ensure-Files {
         $filePath = Join-Path -Path $DownloadDir -ChildPath $fileName
 
         if (-not (Test-Path $filePath)) {
-            Write-Host "Downloading $fileName..."
-            Invoke-WebRequest -Uri $url -OutFile $filePath
+            try {
+                Write-Host "Downloading $fileName..."
+                Invoke-WebRequest -Uri $url -OutFile $filePath
+            } catch {
+                Write-Host "Error downloading $fileName."
+                Handle-Error -ErrorRecord $_ -LogPath $ymLogPath
+            }
         }
     }
 
@@ -106,8 +147,8 @@ function Ensure-7zip {
             Write-Host "Starting installer..."
             Start-Process -FilePath $SevenZipInstallerPath -Wait
         } catch {
-            Write-Host "Error when trying to launch installer."
-            Write-Host "Installer likely does not exist."
+            Write-Host "Error with 7Zip installer."
+            Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
         }
     }
 }
@@ -121,21 +162,38 @@ function Backup-YuzuFolder {
     # Get current date and time for backup filename
     $backupName = (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + "_yuzu.tar"
 
-    Write-Host "Starting backup..."
-    Start-Process -FilePath $sevenZipPath -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
-    Write-Host "Done."
+    try {
+        Write-Host "Starting backup..."
+        Start-Process -FilePath $sevenZipPath -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
+        Write-Host "Done."
+    } catch {
+        Write-Host "Error creating backup of yuzu folder."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    }
 
-    Write-Host "Moving to backup location: $ymBackupPath"
-    Move-Item -Path "$tempFile" -Destination "$ymBackupPath\$backupName"
+    try {
+        Write-Host "Moving to backup location: $ymBackupPath"
+        Move-Item -Path "$tempFile" -Destination "$ymBackupPath\$backupName"
+    } catch {
+        Write-Host "Error moving backup to Yuzu Manager backup folder."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    }
 }
+
 
 # --- Initial Setup ---
 # Create directories as necessary.
-New-Item -ItemType Directory -Path "$yuzuArchivePath" -Force | Out-Null
-New-Item -ItemType Directory -Path "$dependenciesPath" -Force | Out-Null
-New-Item -ItemType Directory -Path "$yuzuArchivePath\created" -Force | Out-Null
-New-Item -ItemType Directory -Path "$ymPath" -Force | Out-Null
-New-Item -ItemType Directory -Path "$ymBackupPath" -Force | Out-Null
+try {
+    New-Item -ItemType Directory -Path "$ymPath" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$archivePath" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$dependenciesPath" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$archivePath\created" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$ymBackupPath" -Force | Out-Null
+} catch {
+    Write-Host "Error creating necessary folders."
+    Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+}
+
 
 # --- Run ---
 # ---- Always ----
