@@ -15,10 +15,12 @@ $dependenciesPath = "$archivePath\dependencies"
 $ymBackupPath = "$ymPath\backup"
 $ymLogPath = "$ymPath\Yuzu_Manager_log.txt"
 $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
-$sevenZipInstallerBasename = "7z2301-x64.exe"
+# Old installer basename; make dynamic.
+# $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
 
 # ---- URLs ----
+# ----- File URLs -----
 # NOTE: Eventually the URL download system will be a secondary, backup system.
 #   Yuzu_Manager will prefer to grab files from the repo.
 $sevenZipUrl = "https://www.7-zip.org/a/7z2301-x64.exe"
@@ -27,7 +29,7 @@ $legacyDiscoveryUrl = "https://cdn.discordapp.com/attachments/890851835349446686
 $saveDataUrl = "https://cdn.discordapp.com/attachments/890851835349446686/1191073579727597589/save_data.rar?ex=65a41cb6&is=6591a7b6&hm=635a5a953b6c7ce64d4dd6b2dbf6b280ed29dbce5f001bafd99c6486004db965&"
 $wifiFixUrl = "https://drive.usercontent.google.com/download?id=1f_idi29L7Poxg0Cljbi4oz9ubpukmdXY&export=download"
 
-# Only static files; HDR will be acquired dynamically so it always grabs the latest release. See Get-LatestHDRReleaseUrl.
+# Only static files; dynamic links added below.
 $fileUrls = @(
     $sevenZipUrl,
     $ldnAllInOneUrl,
@@ -35,6 +37,10 @@ $fileUrls = @(
     $saveDataUrl,
     $wifiFixUrl
 )
+
+# ----- Page URLs -----
+$yuzuDownloadPage = "https://yuzu-emu.org/downloads/#windows"
+$7zipDownloadPage = "https://www.7-zip.org/"
 
 
 # --- Functions ---
@@ -94,8 +100,56 @@ function Get-LatestHdrReleaseUrl {
             return $asset.browser_download_url
         }
     }
+
     Write-Host "Asset $AssetName not found in latest release."
     return $null
+}
+
+# ---- Get-LatestYuzuRelease ----
+function Get-LatestYuzuRelease {
+    param(
+        [string]$YuzuUrl
+    )
+
+    # TODO: Examine edge cases and determine if returning null will be necessary at any point.
+
+    try {
+        $scrapedLinks = (Invoke-WebRequest "$YuzuUrl").Links.Href | Get-Unique
+    } catch {
+        Write-Host "Error grabbing Yuzu page."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    }
+
+    $linksArray = -Split $scrapedLinks
+    $yuzuDownloadLink = $linksArray.Where({$_ -like '*yuzu_install.exe'})
+
+    return "$yuzuDownloadLink"
+}
+
+# ---- Get-Latest7zipRelease ----
+function Get-Latest7zipRelease {
+    param(
+        [string]$7ZipUrl
+    )
+
+    # Hard coding website for now due to unexplained `-7ZipUrl` error.
+    #   See logs for more info.
+    $7ZipUrl = "https://www.7-zip.org/"
+
+    try {
+        $scrapedLinks = (Invoke-WebRequest "$7ZipUrl").Links.Href | Get-Unique
+    }
+    catch {
+        Write-Host "Error grabbing 7Zip page."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    }
+
+    $linksArray = -Split $scrapedLinks
+    $7zipDownloadLink = $linksArray.Where({$_ -like 'a/*-x64.exe'})
+    $7zipDownloadLink = "$7ZipUrl" + "$7zipDownloadLink"
+
+
+    return "$7zipDownloadLink"
 }
 
 # ---- Ensure-Files ----
@@ -163,9 +217,9 @@ function Backup-YuzuFolder {
     $backupName = (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + "_yuzu.tar"
 
     try {
-        Write-Host "Starting backup..."
+        Write-Host "`nStarting backup..."
         Start-Process -FilePath $sevenZipPath -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
-        Write-Host "Done."
+        Write-Host "`nDone."
     } catch {
         Write-Host "Error creating backup of yuzu folder."
         Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
@@ -195,15 +249,29 @@ try {
 }
 
 
+# --- Last-Minute Variable Overrides ---
+# Probably not fantastic practice, but it'll work for our purposes, for now.
+# ---- 7Zip Installer Basename Fix ----
+$sevenZipInstallerBasename = Get-Latest7zipRelease
+$sevenZipInstallerBasename = [System.IO.Path]::GetFileName($sevenZipInstallerBasename)
+$sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
+
 # --- Run ---
 # ---- Always ----
-# Append latest HDR release to $fileUrls
+# ----- Add Dynamic URLs -----
 $latestHdrUrl = Get-LatestHdrReleaseUrl -RepoOwner "HDR-Development" -RepoName "HDR-Releases" -AssetName "ryujinx-package.zip"
 if ($latestHdrUrl) {
     $fileUrls += $latestHdrUrl
 }
 
-# Ensure dependencies
+$latestYuzuUrl = Get-LatestYuzuRelease -YuzuUrl "$yuzuDownloadPage"
+$fileUrls += $latestYuzuUrl
+
+$latest7ZipUrl = Get-Latest7zipRelease -7ZipUrl "$7zipDownloadPage"
+$fileUrls += $latest7ZipUrl
+
+# ----- Ensure Dependencies -----
+Write-Host "Ensuring files...`n  NOTE: Will download unsatisfied files."
 Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
 
