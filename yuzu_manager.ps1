@@ -23,7 +23,6 @@ $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
 # ----- File URLs -----
 # NOTE: Eventually the URL download system will be a secondary, backup system.
 #   Yuzu_Manager will prefer to grab files from the repo.
-$sevenZipUrl = "https://www.7-zip.org/a/7z2301-x64.exe"
 $ldnAllInOneUrl = "https://cdn.discordapp.com/attachments/1121103766960226496/1188253223761485966/LDN_all_in_one_package.zip?ex=6599da0d&is=6587650d&hm=e3cea7384dad56f144346478b881e8439d16c43d94dc7964edab3b399f0a82fe&"
 $legacyDiscoveryUrl = "https://cdn.discordapp.com/attachments/890851835349446686/1191740302566891581/legacy_discovery?ex=65a689a5&is=659414a5&hm=b19cb9b22f67d4ca97da49b3b51c9242be57fb2124e74a894d072260225576fd&"
 $saveDataUrl = "https://cdn.discordapp.com/attachments/890851835349446686/1191073579727597589/save_data.rar?ex=65a41cb6&is=6591a7b6&hm=635a5a953b6c7ce64d4dd6b2dbf6b280ed29dbce5f001bafd99c6486004db965&"
@@ -31,7 +30,6 @@ $wifiFixUrl = "https://drive.usercontent.google.com/download?id=1f_idi29L7Poxg0C
 
 # Only static files; dynamic links added below.
 $fileUrls = @(
-    $sevenZipUrl,
     $ldnAllInOneUrl,
     $legacyDiscoveryUrl,
     $saveDataUrl,
@@ -40,6 +38,7 @@ $fileUrls = @(
 
 # ----- Page URLs -----
 $yuzuDownloadPage = "https://yuzu-emu.org/downloads/#windows"
+$msVisualDownloadPage = "$yuzuDownloadPage"
 $7zipDownloadPage = "https://www.7-zip.org/"
 
 
@@ -124,6 +123,25 @@ function Get-LatestYuzuRelease {
     $yuzuDownloadLink = $linksArray.Where({$_ -like '*yuzu_install.exe'})
 
     return "$yuzuDownloadLink"
+}
+
+# ---- Get-LatestMSVisual ----
+function Get-LatestMSVisualRelease {
+    param(
+        [string]$VisualUrl
+    )
+
+    try {
+        $scrapedLinks = (Invoke-WebRequest "$VisualUrl").Links.Href | Get-Unique
+    } catch {
+        Write-Host "Error grabbing MS Visual page."
+        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    }
+
+    $linksArray = -Split $scrapedLinks
+    $msVisualDownloadLink = $linksArray.Where({$_ -like '*aka.ms/*vc_redist.x64.exe'})
+
+    return "$msVisualDownloadLink"
 }
 
 # ---- Get-Latest7zipRelease ----
@@ -265,13 +283,22 @@ if ($latestHdrUrl) {
 }
 
 $latestYuzuUrl = Get-LatestYuzuRelease -YuzuUrl "$yuzuDownloadPage"
-$fileUrls += $latestYuzuUrl
+if ($latestYuzuUrl) {
+    $fileUrls += $latestYuzuUrl
+}
 
 $latest7ZipUrl = Get-Latest7zipRelease -7ZipUrl "$7zipDownloadPage"
-$fileUrls += $latest7ZipUrl
+if ($latest7ZipUrl) {
+    $fileUrls += $latest7ZipUrl
+}
+
+$latestMSVisualUrl = Get-LatestMSVisualRelease -VisualUrl "$msVisualDownloadPage"
+if ($latestMSVisualUrl) {
+    $fileUrls += $latestMSVisualUrl
+}
 
 # ----- Ensure Dependencies -----
-Write-Host "Ensuring files...`n  NOTE: Will download unsatisfied files."
+Write-Host "Ensuring files..."
 Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
 
