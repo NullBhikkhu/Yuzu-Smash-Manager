@@ -16,7 +16,8 @@ Please be aware that at present the script can only download dependencies and ba
 2. Put it where you'd like it to live.
 
 ### Usage
-
+1. Navigate to its folder.
+2. Right-click and select "Run with PowerShell".
 
 ## Features
 - Downloads all legal prerequisites.
