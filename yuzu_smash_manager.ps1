@@ -34,10 +34,10 @@ $wifiFixUrl = "https://drive.usercontent.google.com/download?id=1f_idi29L7Poxg0C
 
 # Only static files; dynamic links added below.
 $fileUrls = @(
-    $ldnAllInOneUrl,
-    $legacyDiscoveryUrl,
-    $saveDataUrl,
-    $wifiFixUrl
+    "$ldnAllInOneUrl",
+    "$legacyDiscoveryUrl",
+    "$saveDataUrl",
+    "$wifiFixUrl"
 )
 
 # ----- Page URLs -----
@@ -91,7 +91,7 @@ function Get-LatestHdrReleaseUrl {
     $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 
     try {
-        $latestRelease = Invoke-WebRequest -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" } -UseBasicParsing | ConvertFrom-Json
+        $latestRelease = Invoke-WebRequest -Uri "$apiUrl" -Headers @{ "User-Agent" = "PowerShell" } -UseBasicParsing | ConvertFrom-Json
     } catch {
         Write-Host "Error accessing HDR GitHub API."
         Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
@@ -123,7 +123,7 @@ function Get-LatestYuzuRelease {
         Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
     }
 
-    $linksArray = -Split $scrapedLinks
+    $linksArray = -Split "$scrapedLinks"
     $yuzuDownloadLink = $linksArray.Where({$_ -like '*yuzu_install.exe'})
 
     return "$yuzuDownloadLink"
@@ -142,7 +142,7 @@ function Get-LatestMSVisualRelease {
         Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
     }
 
-    $linksArray = -Split $scrapedLinks
+    $linksArray = -Split "$scrapedLinks"
     $msVisualDownloadLink = $linksArray.Where({$_ -like '*aka.ms/*vc_redist.x64.exe'})
 
     return "$msVisualDownloadLink"
@@ -166,7 +166,7 @@ function Get-Latest7zipRelease {
         Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
     }
 
-    $linksArray = -Split $scrapedLinks
+    $linksArray = -Split "$scrapedLinks"
     $7zipDownloadLink = $linksArray.Where({$_ -like 'a/*-x64.exe'})
     $7zipDownloadLink = "$7ZipUrl" + "$7zipDownloadLink"
 
@@ -193,15 +193,15 @@ function Ensure-Files {
             $fileName = "Wifi-Fix (merge with current exef).zip"
         }
 
-        $filePath = Join-Path -Path $DownloadDir -ChildPath $fileName
+        $filePath = Join-Path -Path "$DownloadDir" -ChildPath "$fileName"
 
         if (-not (Test-Path $filePath)) {
             try {
                 Write-Host "Downloading $fileName..."
-                Invoke-WebRequest -Uri $url -OutFile $filePath
+                Invoke-WebRequest -Uri "$url" -OutFile "$filePath"
             } catch {
                 Write-Host "Error downloading $fileName."
-                Handle-Error -ErrorRecord $_ -LogPath $ymLogPath
+                Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
             }
         }
     }
@@ -220,7 +220,7 @@ function Ensure-7zip {
         Write-Host "7-Zip not installed. Opening installer."
         
         try {
-            Start-Process -FilePath $SevenZipInstallerPath -Wait
+            Start-Process -FilePath "$SevenZipInstallerPath" -Wait
         } catch {
             Write-Host "Error with 7Zip installer."
             Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
@@ -234,11 +234,11 @@ function Ensure-Yuzu {
         [string]$YuzuInstallerPath
     )
 
-    if (-not (Test-Path $YuzuPath)) {
+    if (-not (Test-Path "$YuzuPath")) {
         Write-Host "yuzu is not installed. Opening installer..."
 
         try {
-            Start-Process -FilePath $YuzuInstallerPath -Wait
+            Start-Process -FilePath "$YuzuInstallerPath" -Wait
         } catch {
             Write-Host "Error with yuzu installer."
             Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
@@ -257,7 +257,7 @@ function Backup-YuzuFolder {
 
     try {
         Write-Host "`nStarting backup..."
-        Start-Process -FilePath $sevenZipPath -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
+        Start-Process -FilePath "$sevenZipPath" -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
         Write-Host "`nDone."
     } catch {
         Write-Host "Error creating backup of yuzu folder."
@@ -300,28 +300,28 @@ $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
 # ----- Add Dynamic URLs -----
 $latestHdrUrl = Get-LatestHdrReleaseUrl -RepoOwner "HDR-Development" -RepoName "HDR-Releases" -AssetName "ryujinx-package.zip"
 if ($latestHdrUrl) {
-    $fileUrls += $latestHdrUrl
+    $fileUrls += "$latestHdrUrl"
 }
 
 $latestYuzuUrl = Get-LatestYuzuRelease -YuzuUrl "$yuzuDownloadPage"
 if ($latestYuzuUrl) {
-    $fileUrls += $latestYuzuUrl
+    $fileUrls += "$latestYuzuUrl"
 }
 
 $latest7ZipUrl = Get-Latest7zipRelease -7ZipUrl "$7zipDownloadPage"
 if ($latest7ZipUrl) {
-    $fileUrls += $latest7ZipUrl
+    $fileUrls += "$latest7ZipUrl"
 }
 
 $latestMSVisualUrl = Get-LatestMSVisualRelease -VisualUrl "$msVisualDownloadPage"
 if ($latestMSVisualUrl) {
-    $fileUrls += $latestMSVisualUrl
+    $fileUrls += "$latestMSVisualUrl"
 }
 
 # ---- Ensure Dependencies ----
-Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
+Ensure-Files -Urls "$fileUrls" -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
-Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath $yuzu
+Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath "$yuzuInstallPath"
 
 # ---- Switches ----
 # if ($InitialSetup) {
