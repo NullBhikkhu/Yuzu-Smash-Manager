@@ -9,6 +9,7 @@ param(
 # --- Variables ---
 # ---- Paths & Filesnames ----
 $yuzuPath = "$env:USERPROFILE\AppData\Roaming\yuzu"
+$yuzuInstallPath = "$env:USERPROFILE\AppData\Local\yuzu"
 $ymPath = "$env:USERPROFILE\AppData\Roaming\Yuzu_Manager"
 $archivePath = "$ymPath\archives"
 $dependenciesPath = "$archivePath\dependencies"
@@ -213,13 +214,30 @@ function Ensure-7zip {
     )
 
     if (-not (Test-Path $SevenZipPath)) {
-        Write-Host "7-Zip not installed. Installing..."
+        Write-Host "7-Zip not installed. Opening installer."
         
         try {
-            Write-Host "Starting installer..."
             Start-Process -FilePath $SevenZipInstallerPath -Wait
         } catch {
             Write-Host "Error with 7Zip installer."
+            Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        }
+    }
+}
+
+function Ensure-Yuzu {
+    param(
+        [string]$YuzuPath,
+        [string]$YuzuInstallerPath
+    )
+
+    if (-not (Test-Path $YuzuPath)) {
+        Write-Host "yuzu is not installed. Opening installer..."
+
+        try {
+            Start-Process -FilePath $YuzuInstallerPath -Wait
+        } catch {
+            Write-Host "Error with yuzu installer."
             Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
         }
     }
@@ -301,6 +319,7 @@ if ($latestMSVisualUrl) {
 Write-Host "Ensuring files..."
 Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
+Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath $yuzu
 
 # ---- Switches ----
 # if ($InitialSetup) {
