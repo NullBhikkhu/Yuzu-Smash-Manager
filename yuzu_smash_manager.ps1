@@ -5,6 +5,9 @@ param(
     [Switch]$Ult
 )
 
+# Welcome text.
+Write-Host "--- Yuzu Smash Manager ---"
+Write-Host "Initializing...`n"
 
 # --- Variables ---
 # ---- Paths & Filesnames ----
@@ -315,8 +318,7 @@ if ($latestMSVisualUrl) {
     $fileUrls += $latestMSVisualUrl
 }
 
-# ----- Ensure Dependencies -----
-Write-Host "Ensuring files..."
+# ---- Ensure Dependencies ----
 Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
 Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath $yuzu
@@ -329,3 +331,8 @@ Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath $yuzu
 if ($Backup) {
     Backup-YuzuFolder
 }
+
+# --- End ---
+Write-Host "`nPress any key to finish..."
+# Keep open for invokation from file manager.
+$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')

@@ -3,18 +3,20 @@
 ## Introduction
 Yuzu Smash Manager is a PowerShell script designed to simplify the setup process for playing low-latency Super Smash Bros Ultimate on the Yuzu emulator.
 
-## Getting Started
-### Platforms
+## Current State
+Please be aware that at present the script can only download dependencies and backup the Yuzu folder. I'm actively working on developing the main functionality.
+
+## Platforms
 - Windows 10
 - Linux (planned)
 
+## Getting Started
 ### Installation
 1. Download the latest release from [GitHub](https://github.com/NullBhikkhu/Yuzu-Smash-Manager).
 2. Put it where you'd like it to live.
-3. Run the script: `.\yuzu-smash-manager.ps1`
 
-## Usage
-To start the setup, run the script and follow the prompts.
+### Usage
+
 
 ## Features
 - Downloads all legal prerequisites.
