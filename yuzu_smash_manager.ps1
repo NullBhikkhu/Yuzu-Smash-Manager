@@ -19,8 +19,6 @@ $dependenciesPath = "$archivePath\dependencies"
 $ymBackupPath = "$ymPath\backup"
 $ymLogPath = "$ymPath\Yuzu_Manager_log.txt"
 $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
-# Old installer basename; make dynamic.
-# $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
 
 # ---- URLs ----
@@ -111,6 +109,7 @@ function Get-LatestHdrReleaseUrl {
 # ---- Get-LatestYuzuRelease ----
 function Get-LatestYuzuRelease {
     param(
+        [Parameter(Mandatory=$true)]
         [string]$YuzuUrl
     )
 
@@ -151,6 +150,7 @@ function Get-LatestMSVisualRelease {
 # ---- Get-Latest7zipRelease ----
 function Get-Latest7zipRelease {
     param(
+        [Parameter(Mandatory=$true)]
         [string]$7ZipUrl
     )
 
@@ -291,11 +291,11 @@ try {
 # --- Last-Minute Variable Overrides ---
 # Probably not fantastic practice, but it'll work for our purposes, for now.
 # ---- 7Zip Installer Basename Fix ----
-$sevenZipInstallerBasename = Get-Latest7zipRelease
+$sevenZipInstallerBasename = Get-Latest7zipRelease -7ZipUrl "$7zipDownloadPage"
 $sevenZipInstallerBasename = [System.IO.Path]::GetFileName("$sevenZipInstallerBasename")
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
 
-$yuzuInstallerBasename = Get-LatestYuzuRelease
+$yuzuInstallerBasename = Get-LatestYuzuRelease -YuzuUrl "$yuzuDownloadPage"
 $yuzuInstallerBasename = [System.IO.Path]::GetFileName("$yuzuInstallerBasename")
 $yuzuInstallerPath = "$dependenciesPath\$yuzuInstallerBasename"
 
