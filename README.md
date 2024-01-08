@@ -19,8 +19,9 @@ Please be aware that at present the script can only download dependencies and ba
 1. Navigate to its folder.
 2. Right-click and select "Run with PowerShell".
 
-## Features
+## Implemented Features
 - Downloads all legal prerequisites.
+- Yuzu data folder backups with the `-Backup` switch.
 
 ## Planned Features
 - Auto-setup of SSBU and low-latency configuration.
