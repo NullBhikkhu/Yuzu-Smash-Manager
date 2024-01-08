@@ -22,7 +22,6 @@ $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
 # Old installer basename; make dynamic.
 # $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
-$yuzuInstallerPath = $dependenciesPath\
 
 # ---- URLs ----
 # ----- File URLs -----
