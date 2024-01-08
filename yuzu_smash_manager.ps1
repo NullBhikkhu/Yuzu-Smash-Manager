@@ -22,6 +22,7 @@ $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
 # Old installer basename; make dynamic.
 # $sevenZipInstallerBasename = "7z2301-x64.exe"
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
+$yuzuInstallerPath = $dependenciesPath\
 
 # ---- URLs ----
 # ----- File URLs -----
@@ -292,8 +293,12 @@ try {
 # Probably not fantastic practice, but it'll work for our purposes, for now.
 # ---- 7Zip Installer Basename Fix ----
 $sevenZipInstallerBasename = Get-Latest7zipRelease
-$sevenZipInstallerBasename = [System.IO.Path]::GetFileName($sevenZipInstallerBasename)
+$sevenZipInstallerBasename = [System.IO.Path]::GetFileName("$sevenZipInstallerBasename")
 $sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
+
+$yuzuInstallerBasename = Get-LatestYuzuRelease
+$yuzuInstallerBasename = [System.IO.Path]::GetFileName("$yuzuInstallerBasename")
+$yuzuInstallerPath = "$dependenciesPath\$yuzuInstallerBasename"
 
 # --- Run ---
 # ---- Always ----
@@ -321,7 +326,7 @@ if ($latestMSVisualUrl) {
 # ---- Ensure Dependencies ----
 Ensure-Files -Urls "$fileUrls" -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
-Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath "$yuzuInstallPath"
+Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath "$yuzuInstallerPath"
 
 # ---- Switches ----
 # if ($InitialSetup) {
