@@ -5,6 +5,7 @@ Yuzu Smash Manager is a PowerShell script designed to simplify the setup process
 
 ## Current State
 WARNING: BROKEN; dependency download feature currently not functioning as intended.
+
 Please be aware that at present the script can only download dependencies and backup the Yuzu folder. I'm actively working on developing the main functionality.
 
 ## Platforms
