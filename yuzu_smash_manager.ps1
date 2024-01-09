@@ -6,25 +6,25 @@ param(
 )
 
 # Welcome text.
-Write-Host "--- Yuzu Smash Manager ---"
+Write-Host "===== Yuzu Smash Manager ====="
 Write-Host "Initializing...`n"
 
 # --- Variables ---
 # ---- Paths & Filesnames ----
-$yuzuPath = "$env:USERPROFILE\AppData\Roaming\yuzu"
-$yuzuInstallPath = "$env:USERPROFILE\AppData\Local\yuzu"
-$ymPath = "$env:USERPROFILE\AppData\Roaming\Yuzu_Manager"
-$archivePath = "$ymPath\archives"
+# TODO: Write functions to locate installations.
+$yuzuDataPath = "$env:USERPROFILE\AppData\Roaming\yuzu"
+$yuzuInstallationPath = "$env:USERPROFILE\AppData\Local\yuzu"
+$ysmDataPath = "$env:USERPROFILE\AppData\Roaming\Yuzu_Smash_Manager"
+$ysmBackupPath = "$ysmDataPath\backup"
+$ysmLogPath = "$ysmDataPath\Yuzu_Smash_Manager_log.txt"
+$archivePath = "$ysmDataPath\archives"
 $dependenciesPath = "$archivePath\dependencies"
-$ymBackupPath = "$ymPath\backup"
-$ymLogPath = "$ymPath\Yuzu_Manager_log.txt"
-$sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
-$sevenZipInstallerPath = "$dependenciesPath\$sevenZipInstallerBasename"
+$sevenZipPath = 'C:\Program Files\7-Zip\7z.exe'
 
 # ---- URLs ----
 # ----- File URLs -----
 # NOTE: Eventually the URL download system will be a secondary, backup system.
-#   Yuzu_Manager will prefer to grab files from the repo.
+#   Yuzu Smash Manager will prefer to grab files from the repo.
 $ldnAllInOneUrl = "https://cdn.discordapp.com/attachments/1121103766960226496/1188253223761485966/LDN_all_in_one_package.zip?ex=6599da0d&is=6587650d&hm=e3cea7384dad56f144346478b881e8439d16c43d94dc7964edab3b399f0a82fe&"
 $legacyDiscoveryUrl = "https://cdn.discordapp.com/attachments/890851835349446686/1191740302566891581/legacy_discovery?ex=65a689a5&is=659414a5&hm=b19cb9b22f67d4ca97da49b3b51c9242be57fb2124e74a894d072260225576fd&"
 $saveDataUrl = "https://cdn.discordapp.com/attachments/890851835349446686/1191073579727597589/save_data.rar?ex=65a41cb6&is=6591a7b6&hm=635a5a953b6c7ce64d4dd6b2dbf6b280ed29dbce5f001bafd99c6486004db965&"
@@ -51,10 +51,6 @@ function Handle-Error {
         [System.Management.Automation.ErrorRecord]$ErrorRecord,
         [string]$LogPath
     )
-
-    # Basic logging.
-    # $errorMessage = "Error: " + "$ErrorRecord.Exception.Message"
-    # $errorMessage | Out-File -FilePath "$LogPath" -Append
 
     # Advanced logging.
     $errorMessage = "ERROR: $($ErrorRecord.Exception.GetType().FullName)"
@@ -92,7 +88,7 @@ function Get-LatestHdrReleaseUrl {
         $latestRelease = Invoke-WebRequest -Uri "$apiUrl" -Headers @{ "User-Agent" = "PowerShell" } -UseBasicParsing | ConvertFrom-Json
     } catch {
         Write-Host "Error accessing HDR GitHub API."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 
     # Find asset.
@@ -119,7 +115,7 @@ function Get-LatestYuzuRelease {
         $scrapedLinks = (Invoke-WebRequest "$YuzuUrl").Links.Href | Get-Unique
     } catch {
         Write-Host "Error grabbing Yuzu page."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 
     $linksArray = -Split "$scrapedLinks"
@@ -131,6 +127,7 @@ function Get-LatestYuzuRelease {
 # ---- Get-LatestMSVisual ----
 function Get-LatestMSVisualRelease {
     param(
+        [Parameter(Mandatory=$true)]
         [string]$VisualUrl
     )
 
@@ -138,7 +135,7 @@ function Get-LatestMSVisualRelease {
         $scrapedLinks = (Invoke-WebRequest "$VisualUrl").Links.Href | Get-Unique
     } catch {
         Write-Host "Error grabbing MS Visual page."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 
     $linksArray = -Split "$scrapedLinks"
@@ -155,7 +152,6 @@ function Get-Latest7zipRelease {
     )
 
     # Hard coding website for now due to unexplained `-7ZipUrl` error.
-    #   See logs for more info.
     $7ZipUrl = "https://www.7-zip.org/"
 
     try {
@@ -163,7 +159,7 @@ function Get-Latest7zipRelease {
     }
     catch {
         Write-Host "Error grabbing 7Zip page."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 
     $linksArray = -Split "$scrapedLinks"
@@ -186,7 +182,7 @@ function Ensure-Files {
     # Skipped ensuring directory as it will always exist
 
     foreach ($url in $Urls) {
-        $fileName = [System.IO.Path]::GetFileName($url).Split('?')[0]
+        $fileName = [System.IO.Path]::GetFileName("$url").Split('?')[0]
 
         # Special handling of Google Drive file.
         if ($url -like "*drive.usercontent.google.com*") {
@@ -195,13 +191,15 @@ function Ensure-Files {
 
         $filePath = Join-Path -Path "$DownloadDir" -ChildPath "$fileName"
 
-        if (-not (Test-Path $filePath)) {
+        Write-Host "$filePath"
+
+        if (-not (Test-Path "$filePath")) {
             try {
                 Write-Host "Downloading $fileName..."
                 Invoke-WebRequest -Uri "$url" -OutFile "$filePath"
             } catch {
                 Write-Host "Error downloading $fileName."
-                Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+                Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
             }
         }
     }
@@ -223,7 +221,7 @@ function Ensure-7zip {
             Start-Process -FilePath "$SevenZipInstallerPath" -Wait
         } catch {
             Write-Host "Error with 7Zip installer."
-            Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+            Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
         }
     }
 }
@@ -241,7 +239,7 @@ function Ensure-Yuzu {
             Start-Process -FilePath "$YuzuInstallerPath" -Wait
         } catch {
             Write-Host "Error with yuzu installer."
-            Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+            Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
         }
     }
 }
@@ -257,19 +255,19 @@ function Backup-YuzuFolder {
 
     try {
         Write-Host "`nStarting backup..."
-        Start-Process -FilePath "$sevenZipPath" -ArgumentList "a -ttar `"$tempFile`" `"$yuzuPath`"" -NoNewWindow -Wait
+        Start-Process -FilePath "$sevenZipPath" -ArgumentList "a -ttar `"$tempFile`" `"$yuzuDataPath`"" -NoNewWindow -Wait
         Write-Host "`nDone."
     } catch {
         Write-Host "Error creating backup of yuzu folder."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 
     try {
-        Write-Host "Moving to backup location: $ymBackupPath"
-        Move-Item -Path "$tempFile" -Destination "$ymBackupPath\$backupName"
+        Write-Host "Moving to backup location: $ysmBackupPath"
+        Move-Item -Path "$tempFile" -Destination "$ysmBackupPath\$backupName"
     } catch {
         Write-Host "Error moving backup to Yuzu Manager backup folder."
-        Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+        Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
     }
 }
 
@@ -277,14 +275,14 @@ function Backup-YuzuFolder {
 # --- Initial Setup ---
 # Create directories as necessary.
 try {
-    New-Item -ItemType Directory -Path "$ymPath" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$ysmDataPath" -Force | Out-Null
     New-Item -ItemType Directory -Path "$archivePath" -Force | Out-Null
     New-Item -ItemType Directory -Path "$dependenciesPath" -Force | Out-Null
     New-Item -ItemType Directory -Path "$archivePath\created" -Force | Out-Null
-    New-Item -ItemType Directory -Path "$ymBackupPath" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$ysmBackupPath" -Force | Out-Null
 } catch {
     Write-Host "Error creating necessary folders."
-    Handle-Error -ErrorRecord $_ -LogPath "$ymLogPath"
+    Handle-Error -ErrorRecord $_ -LogPath "$ysmLogPath"
 }
 
 
@@ -323,9 +321,9 @@ if ($latestMSVisualUrl) {
 }
 
 # ---- Ensure Dependencies ----
-Ensure-Files -Urls "$fileUrls" -DownloadDir "$dependenciesPath"
+Ensure-Files -Urls $fileUrls -DownloadDir "$dependenciesPath"
 Ensure-7zip -SevenZipPath "$sevenZipPath" -SevenZipInstallerPath "$sevenZipInstallerPath"
-Ensure-Yuzu -YuzuPath "$yuzuInstallPath" -YuzuInstallerPath "$yuzuInstallerPath"
+Ensure-Yuzu -YuzuPath "$yuzuInstallationPath" -YuzuInstallerPath "$yuzuInstallerPath"
 
 # ---- Switches ----
 # if ($InitialSetup) {
