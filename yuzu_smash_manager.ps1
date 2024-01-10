@@ -170,6 +170,9 @@ function Get-Latest7zipRelease {
     return "$7zipDownloadLink"
 }
 
+# ---- Find-Installation ----
+function Find-Installation {}
+
 # ---- Ensure-Files ----
 function Ensure-Files {
     param(
